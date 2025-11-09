@@ -1,0 +1,24 @@
+# 複数ハイパラの並列実行 → metrics.json をゲート
+jobs:
+  - name: m3prime-grid
+    matrix:
+      emb_dim: [128, 192]
+      n_layers: [2, 3]
+      ffn_dim: [256, 384]
+    steps:
+      - run: |
+          yq e ".model.emb_dim=${{matrix.emb_dim}} | .model.n_layers=${{matrix.n_layers}} | .model.ffn_dim=${{matrix.ffn_dim}}" configs/default.yaml > /tmp/cfg.yaml
+          python m3prime/train.py --config /tmp/cfg.yaml
+          python m3prime/eval.py  --config /tmp/cfg.yaml
+      - gate:
+          from_file: "out/metrics/metrics.json"
+          rules:
+            - key: "f1_macro"
+              op: ">="
+              value: 0.82
+            - key: "timing_mae_ms"
+              op: "<="
+              value: 80
+            - key: "switch_per_sec"
+              op: "<="
+              value: 6.0
