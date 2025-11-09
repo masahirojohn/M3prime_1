@@ -1,0 +1,30 @@
+
+---
+
+## Makefile
+
+```make
+PY=python
+CONF=configs/default.yaml
+OUT=out
+
+.PHONY: etl train eval infer grid clean
+
+etl:
+	$(PY) etl/dlc_to_pose.py --config $(CONF)
+	$(PY) etl/build_trainset.py --config $(CONF)
+
+train:
+	$(PY) m3prime/train.py --config $(CONF)
+
+eval:
+	$(PY) m3prime/eval.py --config $(CONF)
+
+infer:
+	$(PY) m3prime/infer.py --config $(CONF) --text "$$TEXT" --audio_ms $$AUDIO_MS
+
+grid:
+	bash scripts/run_grid.sh
+
+clean:
+	rm -rf $(OUT)
