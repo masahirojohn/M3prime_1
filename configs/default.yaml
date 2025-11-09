@@ -1,0 +1,76 @@
+# 全体
+seed: 42
+device: "cuda"
+
+# 時間ステップ（25fps相当）
+step_ms: 40
+
+# パス
+paths:
+  in_dir: "in"
+  out_dir: "out"
+  transcript: "in/transcript.json"        # ← 今回のノートでは未使用
+  dlc_csv: "in/dlc_landmarks.csv"         # ← 実際は 1_0_1.csv をコピーして使う
+  pose_timeline: "in/pose_timeline.json"
+  train_samples: "in/train_samples.jsonl"
+
+# DLC列名マッピング（あなたのCSVに合わせて更新済）
+dlc_columns:
+  # 時刻は timestamp(秒) から内部で t_ms を算出。t_ms列が無い前提でOK。
+  t_ms: ""              # 空なら frame+fps または timestamp から算出
+  frame: "frame"
+  fps: 25
+
+  # “顔幅”に使う基準点（両目の外側）
+  flx: "eye_left_outer_x"
+  fly: "eye_left_outer_y"
+  frx: "eye_right_outer_x"
+  fry: "eye_right_outer_y"
+
+  # 唇（外側）と口角
+  ulx: "mouth_outer_upper_x"
+  uly: "mouth_outer_upper_y"
+  llx: "mouth_outer_lower_x"
+  lly: "mouth_outer_lower_y"
+  mlx: "mouth_outer_left_x"
+  mly: "mouth_outer_left_y"
+  mrx: "mouth_outer_right_x"
+  mry: "mouth_outer_right_y"
+
+  # （任意）likelihood
+  lk_ul: "mouth_outer_upper_likelihood"
+  lk_ll: "mouth_outer_lower_likelihood"
+  lk_ml: "mouth_outer_left_likelihood"
+  lk_mr: "mouth_outer_right_likelihood"
+
+likelihood_threshold: 0.0   # 初期は0.0→様子を見て 0.1〜0.2 へ
+
+# τ/ρ は上のColabノートで自動提案された値に置き換えてください（以下は仮）
+tau: [0.02, 0.05, 0.10]  # 開口度しきい値（小→中→大）
+rho: [0.20, 0.30, 0.40]  # 口幅しきい値（狭→中→広）
+median_k: 5
+hys_low_keep: 1
+hys_high_keep: 1
+
+# 学習
+train:
+  batch_size: 32
+  epochs: 12
+  lr: 0.002
+  weight_decay: 0.0001
+  label_smoothing: 0.05
+  early_stop_patience: 5
+
+# モデル（tiny）
+model:
+  emb_dim: 128
+  n_layers: 2
+  n_heads: 4
+  ffn_dim: 256
+  dropout: 0.1
+
+# 評価ゲート（Jules用）
+gate:
+  f1_macro_min: 0.82
+  timing_mae_ms_max: 80
+  switch_per_sec_max: 6.0
