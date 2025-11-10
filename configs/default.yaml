@@ -12,7 +12,7 @@ paths:
 
 dlc_columns:
   # t_msは空でOK（frame+fps または timestamp から算出）
-  t_ms: ""
+  t_ms: "t_ms"      # ← 空ではなく "t_ms" を明示。CSVに無ければ自動で作成される
   frame: "frame"
   fps: 25
 
