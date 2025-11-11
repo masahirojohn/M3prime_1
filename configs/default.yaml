@@ -1,78 +1,67 @@
 seed: 42
-device: "cpu"
-
-# 1フレーム40ms前提（25fps）。変更不要。
+device: cpu
 step_ms: 40
-
 paths:
-  in_dir: "in"
-  out_dir: "out/exp_smoke"           # ← スモーク専用のアウトプット
-  transcript: "in/transcript.json"   # ← あれば使用。無くても動作する想定
-  dlc_csv: "in/1_0_1.csv"            # ← ★ あなたのCSV名に合わせて変更済み
-  pose_timeline: "out/exp_smoke/pose_timeline.json"
-  train_samples: "out/exp_smoke/train_samples.jsonl"
-
+  in_dir: in
+  out_dir: out/exp_smoke
+  transcript: in/transcript.json
+  dlc_csv: in/1_0_1.csv
+  pose_timeline: out/exp_smoke/pose_timeline.json
+  train_samples: out/exp_smoke/train_samples.jsonl
+  val_samples: out/exp_smoke/val.jsonl
 dlc_columns:
-  # ★ t_ms は空NG → "t_ms" を明示（CSVに無ければ自動生成）
-  t_ms: "t_ms"
-  frame: "frame"
+  t_ms: t_ms
+  frame: frame
   fps: 25
-
-  # ---- DLC列マッピング（CSVの列名に合わせて調整済）----
-  flx: "eye_left_outer_x"
-  fly: "eye_left_outer_y"
-  frx: "eye_right_outer_x"
-  fry: "eye_right_outer_y"
-
-  ulx: "mouth_outer_upper_x"
-  uly: "mouth_outer_upper_y"
-  llx: "mouth_outer_lower_x"
-  lly: "mouth_outer_lower_y"
-  mlx: "mouth_outer_left_x"
-  mly: "mouth_outer_left_y"
-  mrx: "mouth_outer_right_x"
-  mry: "mouth_outer_right_y"
-
-  ilx: "mouth_inner_left_x"
-  ily: "mouth_inner_left_y"
-  irx: "mouth_inner_right_x"
-  iry: "mouth_inner_right_y"
-  iux: "mouth_inner_upper_x"
-  iuy: "mouth_inner_upper_y"
-  ilx2: "mouth_inner_lower_x"
-  ily2: "mouth_inner_lower_y"
-
-  lk_ul: "mouth_outer_upper_likelihood"
-  lk_ll: "mouth_outer_lower_likelihood"
-  lk_ml: "mouth_outer_left_likelihood"
-  lk_mr: "mouth_outer_right_likelihood"
-
-# ---- ETLパラメータ（まずは動作優先）----
-likelihood_threshold: 0.2           # ※後で口形精度向上時にチューニング
-tau: [0.02, 0.05, 0.1]               # 仮の3点。スモーク用途
-rho: [0.2, 0.3, 0.4]                 # 仮の3点。スモーク用途
+  flx: eye_left_outer_x
+  fly: eye_left_outer_y
+  frx: eye_right_outer_x
+  fry: eye_right_outer_y
+  ulx: mouth_outer_upper_x
+  uly: mouth_outer_upper_y
+  llx: mouth_outer_lower_x
+  lly: mouth_outer_lower_y
+  mlx: mouth_outer_left_x
+  mly: mouth_outer_left_y
+  mrx: mouth_outer_right_x
+  mry: mouth_outer_right_y
+  ilx: mouth_inner_left_x
+  ily: mouth_inner_left_y
+  irx: mouth_inner_right_x
+  iry: mouth_inner_right_y
+  iux: mouth_inner_upper_x
+  iuy: mouth_inner_upper_y
+  ilx2: mouth_inner_lower_x
+  ily2: mouth_inner_lower_y
+  lk_ul: mouth_outer_upper_likelihood
+  lk_ll: mouth_outer_lower_likelihood
+  lk_ml: mouth_outer_left_likelihood
+  lk_mr: mouth_outer_right_likelihood
+likelihood_threshold: 0.2
+tau:
+- 0.02
+- 0.05
+- 0.1
+rho:
+- 0.2
+- 0.3
+- 0.4
 median_k: 5
 hys_low_keep: 1
 hys_high_keep: 1
-
-# ---- 学習設定（スモーク用：超軽量）----
 train:
   batch_size: 32
-  epochs: 1                          # ★ スモークなので1epoch
+  epochs: 1
   lr: 0.002
   weight_decay: 0.0001
   label_smoothing: 0.05
   early_stop_patience: 3
-
-# ---- モデル構成（将来変更可。まず動作優先）----
 model:
   emb_dim: 128
   n_layers: 2
   n_heads: 4
   ffn_dim: 256
   dropout: 0.1
-
-# ---- 評価ゲート（スモークでは無効化）----
 gate:
   f1_macro_min: 0.0
   timing_mae_ms_max: 9999

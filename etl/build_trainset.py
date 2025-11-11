@@ -23,9 +23,10 @@ def chunk_transcript(words, min_ms=300, max_ms=800):
         if start is None: start=w["start_ms"]
         cur.append(w); end=w["end_ms"]; dur=end-start
         punct=w.get("punct","")
-        if dur>=min_ms and (dur>=max_ms or punct in ["。","！","？",".","!","?","\n"]):
+        if dur>=min_ms and (dur>=max_ms or punct in ["。","！","？",".","!","?","\\n"]):
             yield cur; cur=[]; start=None; end=None
-    if cur: yield cur
+    if cur:
+        yield cur
 
 def resample_steps(mouth_events, t0, t1, step_ms):
     ev=sorted(mouth_events, key=lambda x:x["t_ms"])
@@ -48,14 +49,31 @@ def main(cfg):
     pose  = load_json(paths["pose_timeline"])
     mouth_events = pose["timeline"]
 
-    cnt=0
-    with open(paths["train_samples"],"w",encoding="utf-8") as f:
-        for ch in chunk_transcript(words):
-            t0=ch[0]["start_ms"]; t1=ch[-1]["end_ms"]
-            kana = to_kana("".join([w.get("surface","")+w.get("punct","") for w in ch]))
-            steps = resample_steps(mouth_events, t0, t1, step_ms)
-            f.write(json.dumps({"t0_ms":t0,"t1_ms":t1,"kana":kana,"T":len(steps),"mouth_steps":steps},ensure_ascii=False)+"\n"); cnt+=1
-    print(f"Wrote samples: {cnt} -> {paths['train_samples']}")
+    train_path = paths["train_samples"]
+    val_path = paths.get("val_samples")
+
+    train_cnt=0; val_cnt=0
+    f_train = open(train_path, "w", encoding="utf-8")
+    f_val = open(val_path, "w", encoding="utf-8") if val_path else None
+
+    is_first = True
+    for ch in chunk_transcript(words):
+        t0=ch[0]["start_ms"]; t1=ch[-1]["end_ms"]
+        kana = to_kana("".join([w.get("surface","")+w.get("punct","") for w in ch]))
+        steps = resample_steps(mouth_events, t0, t1, step_ms)
+        line = json.dumps({"t0_ms":t0,"t1_ms":t1,"kana":kana,"T":len(steps),"mouth_steps":steps},ensure_ascii=False)+"\n"
+
+        if is_first and f_val:
+            f_val.write(line)
+            val_cnt += 1
+            is_first = False
+        else:
+            f_train.write(line)
+            train_cnt += 1
+
+    f_train.close()
+    if f_val: f_val.close()
+    print(f"Wrote samples: train={train_cnt}, val={val_cnt}")
 
 if __name__=="__main__":
     import argparse
