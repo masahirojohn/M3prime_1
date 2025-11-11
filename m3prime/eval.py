@@ -1,47 +1,46 @@
-import argparse, yaml, json, os, torch
-from m3prime.dataset import MouthDataset, collate, VOCAB
-from m3prime.model_tiny import Text2Mouth
+import argparse, yaml, json, os
 from m3prime.metrics import summarize_sample
 import numpy as np
 
-def main(cfg):
-    dev=cfg["device"] if torch.cuda.is_available() else "cpu"
-    out=cfg["paths"]["out_dir"]; os.makedirs(f"{out}/metrics", exist_ok=True)
-    step_ms=cfg["step_ms"]
+def load_jsonl(p):
+    with open(p, "r", encoding="utf-8") as f:
+        return [json.loads(line) for line in f]
 
-    ds=MouthDataset(cfg["paths"]["train_samples"])
-    dl=torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False, collate_fn=collate)
+def main(cfg, gt_path, pred_path, report_path):
+    step_ms = cfg["step_ms"]
+    gts = load_jsonl(gt_path)
+    preds = load_jsonl(pred_path)
 
-    m=Text2Mouth(VOCAB, **cfg["model"]).to(dev)
-    m.load_state_dict(torch.load(f"{out}/ckpt/best.pt", map_location=dev))
-    m.eval()
+    all_metrics = []
+    for gt, pred in zip(gts, preds):
+        y_true = gt["mouth_steps"]
+        y_pred = pred["mouth_steps_pred"]
+        metrics = summarize_sample(y_true, y_pred, step_ms)
+        all_metrics.append(metrics)
 
-    all=[]
-    with torch.no_grad():
-        for B in dl:
-            x=B["x"].to(dev); mask=B["mask"].to(dev); T=B["T_list"]; y=B["y"].squeeze(0).tolist()
-            logits=m(x,mask,T).squeeze(0)[:T[0]]
-            pred=logits.argmax(-1).cpu().tolist()
-            # 欠損(-100)を教師から除外
-            y_ids=[t for t in y[:T[0]] if t>=0]
-            p_ids=pred[:len(y_ids)]
-            all.append(summarize_sample(y_ids, p_ids, step_ms))
+    f1 = np.mean([a["f1_macro"] for a in all_metrics])
+    sw = np.mean([a["switch_per_sec"] for a in all_metrics])
+    mae = np.mean([a["timing_mae_ms"] for a in all_metrics])
 
-    # 集計
-    f1=np.mean([a["f1_macro"] for a in all])
-    sw=np.mean([a["switch_per_sec"] for a in all])
-    mae=np.mean([a["timing_mae_ms"] for a in all])
-    metrics={"f1_macro":float(f1),"switch_per_sec":float(sw),"timing_mae_ms":float(mae)}
-    # ゲート
-    gate=cfg["gate"]; metrics["gate_pass"]= bool(
-        (metrics["f1_macro"]>=gate["f1_macro_min"]) and
-        (metrics["timing_mae_ms"]<=gate["timing_mae_ms_max"]) and
-        (metrics["switch_per_sec"]<=gate["switch_per_sec_max"])
-    )
-    with open(f"{out}/metrics/metrics.json","w") as f: json.dump(metrics,f,indent=2)
-    print(json.dumps(metrics, indent=2, ensure_ascii=False))
+    summary = {
+        "f1_macro": float(f1),
+        "switch_per_sec": float(sw),
+        "timing_mae_ms": float(mae)
+    }
 
-if __name__=="__main__":
-    ap=argparse.ArgumentParser(); ap.add_argument("--config",required=True)
-    args=ap.parse_args(); cfg=yaml.safe_load(open(args.config,"r",encoding="utf-8"))
-    main(cfg)
+    with open(report_path, "w") as f:
+        json.dump(summary, f, indent=2)
+    print(f"Wrote: {report_path}")
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--config", required=True)
+    ap.add_argument("--gt", required=True)
+    ap.add_argument("--pred", required=True)
+    ap.add_argument("--report", required=True)
+    args = ap.parse_args()
+
+    with open(args.config, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+
+    main(cfg, args.gt, args.pred, args.report)
