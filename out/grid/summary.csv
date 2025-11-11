@@ -1,0 +1,21 @@
+tau,rho,f1_macro,timing_mae_ms,switch_per_sec,run_dir
+patched: configs/default.yaml
+Wrote: out/exp_smoke/pose_timeline.json (events=3)
+Wrote samples: train=1, val=1
+[ep 1] loss=0.0214
+0.03,0.25,,,,
+patched: configs/default.yaml
+Wrote: out/exp_smoke/pose_timeline.json (events=9)
+Wrote samples: train=1, val=1
+[ep 1] loss=0.0214
+0.03,0.35,,,,
+patched: configs/default.yaml
+Wrote: out/exp_smoke/pose_timeline.json (events=3)
+Wrote samples: train=1, val=1
+[ep 1] loss=0.0214
+0.06,0.25,,,,
+patched: configs/default.yaml
+Wrote: out/exp_smoke/pose_timeline.json (events=11)
+Wrote samples: train=1, val=1
+[ep 1] loss=0.0214
+0.06,0.35,,,,
