@@ -3,7 +3,7 @@ device: cpu
 step_ms: 40
 paths:
   in_dir: in
-  out_dir: out/exp_smoke
+  out_dir: out/grid/tau0.06_rho0.35
   transcript: in/transcript.json
   dlc_csv: in/1_0_1.csv
   pose_timeline: out/exp_smoke/pose_timeline.json
@@ -39,13 +39,13 @@ dlc_columns:
   lk_mr: mouth_outer_right_likelihood
 likelihood_threshold: 0.2
 tau:
-- 0.02
-- 0.05
-- 0.1
+- 0.06
+- 0.108
+- 0.192
 rho:
-- 0.2
-- 0.3
-- 0.4
+- 0.35
+- 0.42
+- 0.48999999999999994
 median_k: 5
 hys_low_keep: 1
 hys_high_keep: 1
