@@ -1,0 +1,32 @@
+=== 0) Deps (NumPy 2系に統一) ===
+Python 3.12.12
+Python: 3.12.12
+NumPy: 2.2.6
+pandas: 2.2.2
+sklearn: 1.6.1
+OpenCV: 4.12.0
+=== 1) Prepare IO ===
+=== 2) Patch configs/default.yaml (safe defaults + fixed seed) ===
+Wrote: configs/default.yaml
+=== 3) MULTI-CSV MERGE (if multiple files exist) ===
+[merge] single CSV detected: 1_0_1.csv
+=== 4) Baseline smoke: ETL→Train(1ep)→Infer→Eval ===
+Wrote: out/grid/tau1.213752_rho1.267698/pose_timeline.json (events=108)
+Wrote samples: train=1, val=1
+[ep 1] loss=0.0196
+Wrote: out/exp_smoke/pred.jsonl
+Wrote: out/exp_smoke/report.json
+=== 5) Quick checks (events / N/K / count consistency) ===
+[baseline] pose events: 163
+[baseline] N=1, K=0
+=== 6) Quantile init for tau/rho (from merged CSV if present) ===
+base_tau=1.103410674829887, base_rho=1.1524523147335306
+grid: tau=[0.993070, 1.213752], rho=[1.037207, 1.267698]
+=== 7) Run 2x2 grid with fixed seed (summary with N/K) ===
+=== 8) Grid Summary (head) ===
+tau,rho,N,K,f1_macro,timing_mae_ms,switch_per_sec,run_dir
+0.993070,1.037207,1,0,0.01282051282051282,0.0,0.0,out/grid/tau0.993070_rho1.037207
+0.993070,1.267698,1,0,0.01282051282051282,0.0,0.0,out/grid/tau0.993070_rho1.267698
+1.213752,1.037207,1,0,0.319634703196347,0.0,0.0,out/grid/tau1.213752_rho1.037207
+1.213752,1.267698,1,0,0.319634703196347,0.0,0.0,out/grid/tau1.213752_rho1.267698
+=== DONE ===
