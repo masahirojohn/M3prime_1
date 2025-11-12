@@ -7,7 +7,8 @@ pip -q install -U pip
 if [ -f requirements.txt ]; then
   pip -q install -r requirements.txt || true
 fi
-pip -q install "numpy>=2.0,<2.3" "pandas>=2.0" "scikit-learn>=1.6,<1.7" \
+pip -q install "numpy>=2.0,<2.3"
+pip -q install "pandas>=2.0" "scikit-learn>=1.6,<1.7" \
                "matplotlib>=3.8" "scipy>=1.11" "PyYAML>=6.0" \
                "opencv-python-headless==4.12.0.88" jq
 
@@ -165,11 +166,11 @@ PY
 echo "=== 4) Baseline smoke: ETL→Train(1ep)→Infer→Eval ==="
 python -m etl.dlc_to_pose     --config configs/default.yaml
 python -m etl.build_trainset  --config configs/default.yaml
-python -m m3prime.train       --config configs/default.yaml --out out/exp_smoke || true
+python -m m3prime.train       --config configs/default.yaml || true
 if [ -f out/exp_smoke/val.jsonl ]; then
   python -m m3prime.infer     --config configs/default.yaml \
          --in out/exp_smoke/val.jsonl --out out/exp_smoke/pred.jsonl || true
-  python -m m3prime.eval      --gt out/exp_smoke/val.jsonl \
+  python -m m3prime.eval      --config configs/default.yaml --gt out/exp_smoke/val.jsonl \
          --pred out/exp_smoke/pred.jsonl --report out/exp_smoke/report.json || true
 fi
 
@@ -230,18 +231,10 @@ BASE_TAU=$(echo "${QVALS[0]}" | jq -r .base_tau)
 BASE_RHO=$(echo "${QVALS[0]}" | jq -r .base_rho)
 echo "base_tau=${BASE_TAU}, base_rho=${BASE_RHO}"
 
-TAU_1=$(python - <<PY
-print({:.6f})
-PY".format(${BASE_TAU}*0.9)")
-TAU_2=$(python - <<PY
-print({:.6f})
-PY".format(${BASE_TAU}*1.1)")
-RHO_1=$(python - <<PY
-print({:.6f})
-PY".format(${BASE_RHO}*0.9)")
-RHO_2=$(python - <<PY
-print({:.6f})
-PY".format(${BASE_RHO}*1.1)")
+TAU_1=$(python -c "print('{:.6f}'.format(${BASE_TAU}*0.9))")
+TAU_2=$(python -c "print('{:.6f}'.format(${BASE_TAU}*1.1))")
+RHO_1=$(python -c "print('{:.6f}'.format(${BASE_RHO}*0.9))")
+RHO_2=$(python -c "print('{:.6f}'.format(${BASE_RHO}*1.1))")
 echo "grid: tau=[${TAU_1}, ${TAU_2}], rho=[${RHO_1}, ${RHO_2}]"
 
 echo "=== 7) Run 2x2 grid with fixed seed (summary with N/K) ==="
@@ -250,59 +243,73 @@ SUM="out/grid/summary.csv"
 echo "tau,rho,N,K,f1_macro,timing_mae_ms,switch_per_sec,run_dir" > "$SUM"
 
 run_one () {
-  local T="$1" R="$2" RUN="out/grid/tau${T}_rho${R}"
+  pwd > /dev/null
+  local tau_val="$1" rho_val="$2"
+  local RUN="out/grid/tau${tau_val}_rho${rho_val}"
   mkdir -p "$RUN"
-  python - <<PY
-import yaml
-p="configs/default.yaml"
-cfg=yaml.safe_load(open(p,"r",encoding="utf-8"))
-cfg["paths"]["out_dir"]="${RUN}"
-t=float("${T}"); r=float("${R}")
-cfg["tau"]=[t, max(t*1.8, t+0.01), max(t*3.2, t+0.03)]
-cfg["rho"]=[r, max(r+0.05, r*1.2), max(r+0.10, r*1.4)]
-open(p,"w",encoding="utf-8").write(yaml.safe_dump(cfg,allow_unicode=True,sort_keys=False))
-print("patched:", p)
+
+  # Patch config for this run
+  python - "$tau_val" "$rho_val" "$RUN" <<'PY'
+import yaml, sys
+from pathlib import Path
+tau_val, rho_val, run_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+p = Path("configs/default.yaml")
+cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
+run_p = Path(run_dir)
+cfg["paths"]["out_dir"] = run_dir
+cfg["paths"]["pose_timeline"] = str((run_p / "pose_timeline.json").as_posix())
+cfg["paths"]["train_samples"] = str((run_p / "train_samples.jsonl").as_posix())
+cfg["paths"]["val_samples"] = str((run_p / "val.jsonl").as_posix())
+t = float(tau_val)
+r = float(rho_val)
+cfg["tau"] = [t, max(t * 1.8, t + 0.01), max(t * 3.2, t + 0.03)]
+cfg["rho"] = [r, max(r + 0.05, r * 1.2), max(r + 0.10, r * 1.4)]
+p.write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding="utf-8")
 PY
 
-  python -m etl.dlc_to_pose     --config configs/default.yaml
-  python -m etl.build_trainset  --config configs/default.yaml
-  python -m m3prime.train       --config configs/default.yaml --out "${RUN}" || true
-
+  # Run pipeline
+  python -m etl.dlc_to_pose --config configs/default.yaml > /dev/null
+  python -m etl.build_trainset --config configs/default.yaml > /dev/null
+  python -m m3prime.train --config configs/default.yaml > /dev/null
   if [ -f "${RUN}/val.jsonl" ]; then
-    python -m m3prime.infer     --config configs/default.yaml --in "${RUN}/val.jsonl" --out "${RUN}/pred.jsonl" || true
-    python -m m3prime.eval      --gt "${RUN}/val.jsonl" --pred "${RUN}/pred.jsonl" \
-                                 --report "${RUN}/report.json" || true
+    python -m m3prime.infer --config configs/default.yaml --in "${RUN}/val.jsonl" --out "${RUN}/pred.jsonl" > /dev/null
+    python -m m3prime.eval --config configs/default.yaml --gt "${RUN}/val.jsonl" --pred "${RUN}/pred.jsonl" --report "${RUN}/report.json" > /dev/null
   fi
 
-  python - <<PY
+  # Summarize run
+  python - "$tau_val" "$rho_val" "$RUN" <<'PY'
 import json, pathlib, sys
-run=pathlib.Path("${RUN}")
-need=["pose_timeline.json","train_samples.jsonl","val.jsonl","pred.jsonl","report.json"]
-miss=[f for f in need if not (run/f).exists()]
+tau_val, rho_val, run_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+run = pathlib.Path(run_dir)
+need = ["pose_timeline.json", "train_samples.jsonl", "val.jsonl", "pred.jsonl", "report.json"]
+miss = [f for f in need if not (run / f).exists()]
 if miss:
-    print("MISSING:", miss); sys.exit(2)
+    print(f"MISSING: {miss}", file=sys.stderr)
+    sys.exit(2)
 
 def read_jsonl(p):
-    with open(p,"r",encoding="utf-8") as f:
+    with p.open("r", encoding="utf-8") as f:
         return [json.loads(x) for x in f]
-V=read_jsonl(run/"val.jsonl")
-P=read_jsonl(run/"pred.jsonl")
-N=len(V)
-labels=set()
-for r in V:
-    for s in r.get("mouth_steps",[]):
-        if isinstance(s, dict):
-            lab=s.get("label") or s.get("mouth6")
-            if lab: labels.add(lab)
-K=len(labels)
-if len(P)!=N:
-    print(f"ERROR: count mismatch (val={N}, pred={len(P)})"); sys.exit(3)
 
-rep=json.loads(open(run/"report.json","r",encoding="utf-8").read())
-f1=rep.get("f1_macro","")
-mae=rep.get("timing_mae_ms","")
-sw =rep.get("switch_per_sec","")
-print(f"{${T}},{${R}},{N},{K},{f1},{mae},{sw},{run.as_posix()}")
+V = read_jsonl(run / "val.jsonl")
+P = read_jsonl(run / "pred.jsonl")
+N = len(V)
+labels = set()
+for r in V:
+    for s in r.get("mouth_steps", []):
+        if isinstance(s, dict):
+            lab = s.get("label") or s.get("mouth6")
+            if lab: labels.add(lab)
+K = len(labels)
+if len(P) != N:
+    print(f"ERROR: count mismatch (val={N}, pred={len(P)})", file=sys.stderr)
+    sys.exit(3)
+
+rep = json.loads((run / "report.json").read_text(encoding="utf-8"))
+f1 = rep.get("f1_macro", "")
+mae = rep.get("timing_mae_ms", "")
+sw = rep.get("switch_per_sec", "")
+print(f"{tau_val},{rho_val},{N},{K},{f1},{mae},{sw},{run.as_posix()}")
 PY
 }
 
