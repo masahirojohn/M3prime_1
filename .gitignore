@@ -1,0 +1,5 @@
+# ignore generated artifacts
+/out/
+/logs/
+/in/combined.csv
+__pycache__/
