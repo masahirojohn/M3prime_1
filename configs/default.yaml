@@ -3,12 +3,12 @@ device: cpu
 step_ms: 40
 paths:
   in_dir: in
-  out_dir: out/grid/tau1.213752_rho1.267698
+  out_dir: out/grid/tau1.212866_rho1.264765
   transcript: in/transcript.json
-  dlc_csv: in/1_0_1.csv
-  pose_timeline: out/grid/tau1.213752_rho1.267698/pose_timeline.json
-  train_samples: out/grid/tau1.213752_rho1.267698/train_samples.jsonl
-  val_samples: out/grid/tau1.213752_rho1.267698/val.jsonl
+  dlc_csv: in/combined.csv
+  pose_timeline: out/grid/tau1.212866_rho1.264765/pose_timeline.json
+  train_samples: out/grid/tau1.212866_rho1.264765/train_samples.jsonl
+  val_samples: out/grid/tau1.212866_rho1.264765/val.jsonl
 dlc_columns:
   t_ms: t_ms
   frame: frame
@@ -39,13 +39,13 @@ dlc_columns:
   lk_mr: mouth_outer_right_likelihood
 likelihood_threshold: 0.2
 tau:
-- 1.213752
-- 2.1847536
-- 3.8840064
+- 1.212866
+- 2.1831588
+- 3.8811712000000003
 rho:
-- 1.267698
-- 1.5212375999999999
-- 1.7747772
+- 1.264765
+- 1.517718
+- 1.7706709999999997
 median_k: 5
 hys_low_keep: 1
 hys_high_keep: 1
